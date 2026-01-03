@@ -1,0 +1,64 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'java-library'
+    id 'com.palantir.git-version' version '3.1.0'
+    id 'org.springframework.boot' version '3.2.5'
+    id 'io.spring.dependency-management' version '1.1.5'
+}
+
+group = 'ru.panyukovnn'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    withJavadocJar()
+    withSourcesJar()
+}
+
+repositories {
+    mavenCentral()
+}
+
+def telegrambotsVersion = "6.5.0"
+
+dependencies {
+    implementation "org.springframework.boot:spring-boot-starter"
+
+    api "org.telegram:telegrambots:${telegrambotsVersion}";
+    api "org.telegram:telegrambots-meta:${telegrambotsVersion}";
+    api "org.telegram:telegrambotsextensions:${telegrambotsVersion}";
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+}
+
+bootJar.enabled = false
+jar.archiveClassifier = ''
+
+test {
+    useJUnitPlatform()
+    jvmArgs("-XX:+EnableDynamicAgentLoading")
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = rootProject.getGroup()
+            artifactId = rootProject.getName()
+            version = rootProject.getVersion()
+
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/panyukovnn/${rootProject.name}"
+            credentials {
+                username = 'panyukovnn'
+                password = "$githubPackagesWriteToken"
+            }
+        }
+    }
+}
