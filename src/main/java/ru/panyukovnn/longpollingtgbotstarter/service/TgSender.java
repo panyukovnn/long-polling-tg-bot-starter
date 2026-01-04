@@ -13,7 +13,6 @@ import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@Service
 public class TgSender {
 
     private static final Logger log = LoggerFactory.getLogger(TgSender.class);

@@ -10,6 +10,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import ru.panyukovnn.longpollingtgbotstarter.config.TgBotApi;
 import ru.panyukovnn.longpollingtgbotstarter.property.TgBotProperties;
+import ru.panyukovnn.longpollingtgbotstarter.service.TgSender;
 
 import java.util.List;
 
@@ -29,5 +30,10 @@ public class LongPollingTgBotStarterAutoConfiguration {
         commands.forEach(botApi::register);
 
         return botApi;
+    }
+
+    @Bean
+    public TgSender tgSender(TgBotApi botApi) {
+        return new TgSender(botApi);
     }
 }
