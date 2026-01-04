@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'ru.panyukovnn'
-version = '1.0.0-SNAPSHOT'
+version = gitVersion()
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
