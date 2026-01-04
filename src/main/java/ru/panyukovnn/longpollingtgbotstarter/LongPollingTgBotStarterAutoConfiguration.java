@@ -1,5 +1,6 @@
 package ru.panyukovnn.longpollingtgbotstarter;
 
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,15 +20,10 @@ import java.util.List;
 public class LongPollingTgBotStarterAutoConfiguration {
 
     @Bean
-    public TgBotApi botApi(
-            ApplicationEventPublisher eventPublisher,
-            TgBotProperties botProperties,
-            List<BotCommand> commands
-    ) throws TelegramApiException {
+    public TgBotApi botApi(ApplicationEventPublisher eventPublisher, TgBotProperties botProperties) throws TelegramApiException {
         TgBotApi botApi = new TgBotApi(eventPublisher, botProperties.getName(), botProperties.getToken());
 
         new TelegramBotsApi(DefaultBotSession.class).registerBot(botApi);
-        commands.forEach(botApi::register);
 
         return botApi;
     }
@@ -35,5 +31,17 @@ public class LongPollingTgBotStarterAutoConfiguration {
     @Bean
     public TgSender tgSender(TgBotApi botApi) {
         return new TgSender(botApi);
+    }
+
+    /**
+     * Регистрирует команды в боте после старта приложения
+     *
+     * @param botApi интерфейс бота
+     * @param commands список команд
+     * @return ignore
+     */
+    @Bean
+    public ApplicationRunner commandRegistrar(TgBotApi botApi, List<BotCommand> commands) {
+        return args -> commands.forEach(botApi::register);
     }
 }

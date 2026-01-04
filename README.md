@@ -78,8 +78,7 @@ public class TgBotListener {
 ### Создание команд
 
 - Для создания команд бота используйте класс `BotCommand` из библиотеки Telegram Bot API.
-- Все команды, созданные в качестве бинов, автоматически регистрируются в боте.
-- Бин `TgSender` в командах необходимо помечать как `@Lazy`, т.к. из-за ограничения библиотеки он зависит от `TgBotApi` бина, в котором региструются команды, что приводит к циклической зависимости бинов
+- Все команды, созданные в качестве бинов, автоматически регистрируются в боте после запуска приложения
 
 ```java
 @Slf4j
@@ -88,7 +87,7 @@ public class StartCommand extends BotCommand {
 
     private final TgSender tgSender;
     
-    public StartCommand(@Lazy TgSender tgSender) {
+    public StartCommand(TgSender tgSender) {
         super("start", "Start command");
         this.tgSender = tgSender;
     }
