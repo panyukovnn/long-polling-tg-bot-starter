@@ -15,6 +15,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -252,6 +253,76 @@ class TgSenderUnitTest {
             String result = tgSender.convertMarkdownToTelegramMarkdownV2("");
 
             assertThat(result, equalTo(""));
+        }
+
+        @Test
+        void when_convertMarkdownToTelegramMarkdownV2_withMultilineBoldText_then_boldProperlyConverted() {
+            String text = "На практике я пришел к выводу, что идеальный PR — это **одна " +
+                "законченная функциональность**. Не «добавил эндпоинт», а «реализовал сценарий X для " +
+                "пользователя Y». В него могут входить изменения в нескольких слоях (контроллер, сервис, " +
+                "репозиторий, миграция), но все они служат одной цели.\n\n" +
+                "Почему это работает?\n\n" +
+                "1.  **Ревьюеру понятен контекст.** Не нужно гадать, зачем этот код и как он связан с " +
+                "другими изменениями в репозитории.\n" +
+                "2.  **Снижается когнитивная нагрузка.** Легче удержать в голове одну задачу, чем десяток " +
+                "разнородных правок.\n" +
+                "3.  **Упрощается откат.** Если что-то пошло не так, можно откатить одну фичу, не задевая " +
+                "другие.";
+
+            String result = tgSender.convertMarkdownToTelegramMarkdownV2(text);
+
+            assertThat(result, containsString(" *одна законченная функциональность*\\. "));
+            assertThat(result, containsString(" *Ревьюеру понятен контекст\\.* "));
+            assertThat(result, containsString(" *Снижается когнитивная нагрузка\\.* "));
+            assertThat(result, containsString(" *Упрощается откат\\.* "));
+        }
+
+        @Test
+        void when_convertMarkdownToTelegramMarkdownV2_withMultilineBoldText_then_noMarkerArtifacts() {
+            String text = "На практике я пришел к выводу, что идеальный PR — это **одна " +
+                "законченная функциональность**. Не «добавил эндпоинт», а «реализовал сценарий X для " +
+                "пользователя Y». В него могут входить изменения в нескольких слоях (контроллер, сервис, " +
+                "репозиторий, миграция), но все они служат одной цели.\n\n" +
+                "Почему это работает?\n\n" +
+                "1.  **Ревьюеру понятен контекст.** Не нужно гадать, зачем этот код и как он связан с " +
+                "другими изменениями в репозитории.\n" +
+                "2.  **Снижается когнитивная нагрузка.** Легче удержать в голове одну задачу, чем десяток " +
+                "разнородных правок.\n" +
+                "3.  **Упрощается откат.** Если что-то пошло не так, можно откатить одну фичу, не задевая " +
+                "другие.";
+
+            String result = tgSender.convertMarkdownToTelegramMarkdownV2(text);
+
+            assertThat(result, not(containsString("\uE000")));
+            assertThat(result, not(containsString("\uE001")));
+            assertThat(result, not(containsString("\uE002")));
+            assertThat(result, not(containsString("\uE003")));
+            assertThat(result, not(containsString("\uE004")));
+            assertThat(result, not(containsString("\uE005")));
+            assertThat(result, not(containsString("\uE006")));
+            assertThat(result, not(containsString("\uE007")));
+            assertThat(result, not(containsString("\uE008")));
+        }
+
+        @Test
+        void when_convertMarkdownToTelegramMarkdownV2_withMultilineBoldText_then_specialCharsEscaped() {
+            String text = "На практике я пришел к выводу, что идеальный PR — это **одна " +
+                "законченная функциональность**. Не «добавил эндпоинт», а «реализовал сценарий X для " +
+                "пользователя Y». В него могут входить изменения в нескольких слоях (контроллер, сервис, " +
+                "репозиторий, миграция), но все они служат одной цели.\n\n" +
+                "Почему это работает?\n\n" +
+                "1.  **Ревьюеру понятен контекст.** Не нужно гадать, зачем этот код и как он связан с " +
+                "другими изменениями в репозитории.\n" +
+                "2.  **Снижается когнитивная нагрузка.** Легче удержать в голове одну задачу, чем десяток " +
+                "разнородных правок.\n" +
+                "3.  **Упрощается откат.** Если что-то пошло не так, можно откатить одну фичу, не задевая " +
+                "другие.";
+
+            String result = tgSender.convertMarkdownToTelegramMarkdownV2(text);
+
+            assertThat(result, containsString("\\(контроллер"));
+            assertThat(result, containsString("миграция\\)"));
+            assertThat(result, containsString("\\."));
         }
     }
 

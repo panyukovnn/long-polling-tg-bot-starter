@@ -80,16 +80,16 @@ public class TgSender {
 
         String result = text;
 
-        // Используем уникальные маркеры для временной замены
-        String boldMarkerStart = "\u0001BOLD_START\u0001";
-        String boldMarkerEnd = "\u0001BOLD_END\u0001";
-        String italicMarkerStart = "\u0001ITALIC_START\u0001";
-        String italicMarkerEnd = "\u0001ITALIC_END\u0001";
-        String codeMarkerStart = "\u0001CODE_START\u0001";
-        String codeMarkerEnd = "\u0001CODE_END\u0001";
-        String linkMarkerStart = "\u0001LINK_START\u0001";
-        String linkMarkerMid = "\u0001LINK_MID\u0001";
-        String linkMarkerEnd = "\u0001LINK_END\u0001";
+        // Используем символы из Private Use Area (U+E000-U+F8FF), которые не экранируются
+        String boldMarkerStart = "\uE000";
+        String boldMarkerEnd = "\uE001";
+        String italicMarkerStart = "\uE002";
+        String italicMarkerEnd = "\uE003";
+        String codeMarkerStart = "\uE004";
+        String codeMarkerEnd = "\uE005";
+        String linkMarkerStart = "\uE006";
+        String linkMarkerMid = "\uE007";
+        String linkMarkerEnd = "\uE008";
 
         // Сохраняем блоки кода (```code```)
         result = result.replaceAll("```([^`]+)```", codeMarkerStart + "$1" + codeMarkerEnd);
