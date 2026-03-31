@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import ru.panyukovnn.longpollingtgbotstarter.config.TgBotApi;
+import org.telegram.telegrambots.meta.generics.TelegramClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,10 +21,10 @@ public class TgSender {
     private static final int MAX_RETRY_ATTEMPTS = 3;
     private static final long INITIAL_RETRY_DELAY_MS = 1000;
 
-    private final TgBotApi tgBotApi;
+    private final TelegramClient telegramClient;
 
-    public TgSender(TgBotApi tgBotApi) {
-        this.tgBotApi = tgBotApi;
+    public TgSender(TelegramClient telegramClient) {
+        this.telegramClient = telegramClient;
     }
 
     public void send(Long chatId, String message) {
@@ -179,7 +179,7 @@ public class TgSender {
 
         while (true) {
             try {
-                tgBotApi.execute(sendMessage);
+                telegramClient.execute(sendMessage);
 
                 return;
             } catch (Exception e) {

@@ -8,7 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import ru.panyukovnn.longpollingtgbotstarter.config.TgBotApi;
+import org.telegram.telegrambots.meta.generics.TelegramClient;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -30,7 +30,7 @@ import java.io.IOException;
 class TgSenderUnitTest {
 
     @Mock
-    private TgBotApi tgBotApi;
+    private TelegramClient telegramClient;
 
     @InjectMocks
     private TgSender tgSender;
@@ -43,11 +43,11 @@ class TgSenderUnitTest {
             Long chatId = 123L;
             String message = "Hello world";
 
-            when(tgBotApi.execute(any(SendMessage.class))).thenReturn(null);
+            when(telegramClient.execute(any(SendMessage.class))).thenReturn(null);
 
             assertDoesNotThrow(() -> tgSender.send(chatId, message));
 
-            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+            verify(telegramClient, times(1)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -55,13 +55,13 @@ class TgSenderUnitTest {
             Long chatId = 123L;
             String message = "Test message";
 
-            when(tgBotApi.execute(any(SendMessage.class)))
+            when(telegramClient.execute(any(SendMessage.class)))
                 .thenThrow(new TelegramApiException("MarkdownV2 parsing error"))
                 .thenReturn(null);
 
             assertDoesNotThrow(() -> tgSender.send(chatId, message));
 
-            verify(tgBotApi, times(2)).execute(any(SendMessage.class));
+            verify(telegramClient, times(2)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -69,11 +69,11 @@ class TgSenderUnitTest {
             Long chatId = 123L;
             String message = "";
 
-            when(tgBotApi.execute(any(SendMessage.class))).thenReturn(null);
+            when(telegramClient.execute(any(SendMessage.class))).thenReturn(null);
 
             assertDoesNotThrow(() -> tgSender.send(chatId, message));
 
-            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+            verify(telegramClient, times(1)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -81,11 +81,11 @@ class TgSenderUnitTest {
             Long chatId = 123L;
             String message = "test strikethrough code";
 
-            when(tgBotApi.execute(any(SendMessage.class))).thenReturn(null);
+            when(telegramClient.execute(any(SendMessage.class))).thenReturn(null);
 
             assertDoesNotThrow(() -> tgSender.send(chatId, message));
 
-            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+            verify(telegramClient, times(1)).execute(any(SendMessage.class));
         }
     }
 
@@ -97,11 +97,11 @@ class TgSenderUnitTest {
             Long chatId = 456L;
             String message = "Simple message";
 
-            when(tgBotApi.execute(any(SendMessage.class))).thenReturn(null);
+            when(telegramClient.execute(any(SendMessage.class))).thenReturn(null);
 
             assertDoesNotThrow(() -> tgSender.sendSimpleHtmlMessage(chatId, message));
 
-            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+            verify(telegramClient, times(1)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -110,11 +110,11 @@ class TgSenderUnitTest {
             Long chatId = 456L;
             String message = "x".repeat(5000);
 
-            when(tgBotApi.execute(any(SendMessage.class))).thenReturn(null);
+            when(telegramClient.execute(any(SendMessage.class))).thenReturn(null);
 
             assertDoesNotThrow(() -> tgSender.sendSimpleHtmlMessage(chatId, message));
 
-            verify(tgBotApi, times(2)).execute(any(SendMessage.class));
+            verify(telegramClient, times(2)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -123,11 +123,11 @@ class TgSenderUnitTest {
             Long chatId = 456L;
             String message = "Text with <tag> & ampersand > symbol";
 
-            when(tgBotApi.execute(any(SendMessage.class))).thenReturn(null);
+            when(telegramClient.execute(any(SendMessage.class))).thenReturn(null);
 
             assertDoesNotThrow(() -> tgSender.sendSimpleHtmlMessage(chatId, message));
 
-            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+            verify(telegramClient, times(1)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -136,12 +136,12 @@ class TgSenderUnitTest {
             Long chatId = 456L;
             String message = "Test message";
 
-            doThrow(new TelegramApiException("Send failed")).when(tgBotApi)
+            doThrow(new TelegramApiException("Send failed")).when(telegramClient)
                 .execute(any(SendMessage.class));
 
             assertDoesNotThrow(() -> tgSender.sendSimpleHtmlMessage(chatId, message));
 
-            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+            verify(telegramClient, times(1)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -149,11 +149,11 @@ class TgSenderUnitTest {
             Long chatId = 456L;
             String message = "";
 
-            when(tgBotApi.execute(any(SendMessage.class))).thenReturn(null);
+            when(telegramClient.execute(any(SendMessage.class))).thenReturn(null);
 
             assertDoesNotThrow(() -> tgSender.sendSimpleHtmlMessage(chatId, message));
 
-            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+            verify(telegramClient, times(1)).execute(any(SendMessage.class));
         }
     }
 
@@ -965,11 +965,11 @@ class TgSenderUnitTest {
                 .text("Test message")
                 .build();
 
-            when(tgBotApi.execute(any(SendMessage.class))).thenReturn(null);
+            when(telegramClient.execute(any(SendMessage.class))).thenReturn(null);
 
             assertDoesNotThrow(() -> tgSender.executeWithRetry(sendMessage));
 
-            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+            verify(telegramClient, times(1)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -985,11 +985,11 @@ class TgSenderUnitTest {
 
             doThrow(runtimeIOException)
                 .doReturn(null)
-                .when(tgBotApi).execute(any(SendMessage.class));
+                .when(telegramClient).execute(any(SendMessage.class));
 
             assertDoesNotThrow(() -> tgSender.executeWithRetry(sendMessage));
 
-            verify(tgBotApi, times(2)).execute(any(SendMessage.class));
+            verify(telegramClient, times(2)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -1004,14 +1004,14 @@ class TgSenderUnitTest {
                 new IOException("Connection reset"));
 
             doThrow(runtimeIOException)
-                .when(tgBotApi).execute(any(SendMessage.class));
+                .when(telegramClient).execute(any(SendMessage.class));
 
             RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> tgSender.executeWithRetry(sendMessage));
 
             assertThat(exception.getMessage(), containsString("Connection reset"));
             assertThat(exception.getCause(), not(equalTo(null)));
-            verify(tgBotApi, times(3)).execute(any(SendMessage.class));
+            verify(telegramClient, times(3)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -1022,13 +1022,13 @@ class TgSenderUnitTest {
                 .text("Test message")
                 .build();
 
-            when(tgBotApi.execute(any(SendMessage.class)))
+            when(telegramClient.execute(any(SendMessage.class)))
                 .thenThrow(new TelegramApiException("Invalid request"));
 
             assertThrows(TelegramApiException.class,
                 () -> tgSender.executeWithRetry(sendMessage));
 
-            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+            verify(telegramClient, times(1)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -1076,11 +1076,11 @@ class TgSenderUnitTest {
             doThrow(firstError)
                 .doThrow(secondError)
                 .doReturn(null)
-                .when(tgBotApi).execute(any(SendMessage.class));
+                .when(telegramClient).execute(any(SendMessage.class));
 
             assertDoesNotThrow(() -> tgSender.executeWithRetry(sendMessage));
 
-            verify(tgBotApi, times(3)).execute(any(SendMessage.class));
+            verify(telegramClient, times(3)).execute(any(SendMessage.class));
         }
 
         @Test
@@ -1107,11 +1107,11 @@ class TgSenderUnitTest {
             doThrow(new TelegramApiException("API error",
                     new IOException("Network unavailable")))
                 .doReturn(null)
-                .when(tgBotApi).execute(any(SendMessage.class));
+                .when(telegramClient).execute(any(SendMessage.class));
 
             assertDoesNotThrow(() -> tgSender.executeWithRetry(sendMessage));
 
-            verify(tgBotApi, times(2)).execute(any(SendMessage.class));
+            verify(telegramClient, times(2)).execute(any(SendMessage.class));
         }
     }
 }

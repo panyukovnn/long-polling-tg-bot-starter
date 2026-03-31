@@ -1,36 +1,24 @@
 package ru.panyukovnn.longpollingtgbotstarter.config;
 
 import org.springframework.context.ApplicationEventPublisher;
-import org.telegram.telegrambots.bots.DefaultBotOptions;
-import org.telegram.telegrambots.extensions.bots.commandbot.TelegramLongPollingCommandBot;
+import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-public class TgBotApi extends TelegramLongPollingCommandBot {
+import java.util.List;
+
+/**
+ * Обработчик входящих обновлений от Telegram, публикует каждое обновление как Spring событие
+ */
+public class TgBotApi implements LongPollingUpdateConsumer {
 
     private final ApplicationEventPublisher eventPublisher;
-    private final String username;
-    private final String token;
 
-    public TgBotApi(ApplicationEventPublisher eventPublisher, DefaultBotOptions botOptions,
-                    String username, String token) {
-        super(botOptions);
+    public TgBotApi(ApplicationEventPublisher eventPublisher) {
         this.eventPublisher = eventPublisher;
-        this.username = username;
-        this.token = token;
     }
 
     @Override
-    public String getBotUsername() {
-        return this.username;
-    }
-
-    @Override
-    public String getBotToken() {
-        return this.token;
-    }
-
-    @Override
-    public void processNonCommandUpdate(Update update) {
-        eventPublisher.publishEvent(update);
+    public void consume(List<Update> updates) {
+        updates.forEach(eventPublisher::publishEvent);
     }
 }

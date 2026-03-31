@@ -1,66 +1,57 @@
 package ru.panyukovnn.longpollingtgbotstarter;
 
-import org.apache.http.client.config.RequestConfig;
-import org.springframework.boot.ApplicationRunner;
+import okhttp3.OkHttpClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
-import org.telegram.telegrambots.bots.DefaultBotOptions;
-import org.telegram.telegrambots.extensions.bots.commandbot.commands.BotCommand;
-import org.telegram.telegrambots.meta.TelegramBotsApi;
+import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
+import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
+import org.telegram.telegrambots.meta.generics.TelegramClient;
 import ru.panyukovnn.longpollingtgbotstarter.config.TgBotApi;
 import ru.panyukovnn.longpollingtgbotstarter.property.TgBotProperties;
 import ru.panyukovnn.longpollingtgbotstarter.service.TgSender;
 
-import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @AutoConfiguration
 @EnableConfigurationProperties(TgBotProperties.class)
 public class LongPollingTgBotStarterAutoConfiguration {
 
     @Bean
-    public TgBotApi botApi(ApplicationEventPublisher eventPublisher,
-                           TgBotProperties botProperties) throws TelegramApiException {
-        DefaultBotOptions botOptions = buildBotOptions(botProperties);
-
-        TgBotApi botApi = new TgBotApi(eventPublisher, botOptions,
-                botProperties.getName(), botProperties.getToken());
-
-        new TelegramBotsApi(DefaultBotSession.class).registerBot(botApi);
-
-        return botApi;
+    public OkHttpClient okHttpClient(TgBotProperties botProperties) {
+        return new OkHttpClient.Builder()
+                .connectTimeout(botProperties.getConnectionTimeoutMs(), TimeUnit.MILLISECONDS)
+                .readTimeout(botProperties.getSocketTimeoutMs(), TimeUnit.MILLISECONDS)
+                .writeTimeout(botProperties.getRequestTimeoutMs(), TimeUnit.MILLISECONDS)
+                .build();
     }
 
     @Bean
-    public TgSender tgSender(TgBotApi botApi) {
-        return new TgSender(botApi);
+    public TelegramClient telegramClient(OkHttpClient okHttpClient,
+                                         TgBotProperties botProperties) {
+        return new OkHttpTelegramClient(okHttpClient, botProperties.getToken());
     }
 
-    /**
-     * Регистрирует команды в боте после старта приложения
-     *
-     * @param botApi интерфейс бота
-     * @param commands список команд
-     * @return ignore
-     */
     @Bean
-    public ApplicationRunner commandRegistrar(TgBotApi botApi, List<BotCommand> commands) {
-        return args -> commands.forEach(botApi::register);
+    public TgBotApi botApi(ApplicationEventPublisher eventPublisher) {
+        return new TgBotApi(eventPublisher);
     }
 
-    private DefaultBotOptions buildBotOptions(TgBotProperties botProperties) {
-        RequestConfig requestConfig = RequestConfig.custom()
-            .setConnectTimeout(botProperties.getConnectionTimeoutMs())
-            .setSocketTimeout(botProperties.getSocketTimeoutMs())
-            .setConnectionRequestTimeout(botProperties.getRequestTimeoutMs())
-            .build();
+    @Bean
+    public TelegramBotsLongPollingApplication telegramBotsApplication(
+            TgBotApi botApi,
+            TgBotProperties botProperties) throws TelegramApiException {
+        TelegramBotsLongPollingApplication application =
+                new TelegramBotsLongPollingApplication();
+        application.registerBot(botProperties.getToken(), botApi);
 
-        DefaultBotOptions botOptions = new DefaultBotOptions();
-        botOptions.setRequestConfig(requestConfig);
+        return application;
+    }
 
-        return botOptions;
+    @Bean
+    public TgSender tgSender(TelegramClient telegramClient) {
+        return new TgSender(telegramClient);
     }
 }
