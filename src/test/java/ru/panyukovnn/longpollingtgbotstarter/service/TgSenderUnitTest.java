@@ -7,15 +7,19 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
+import ru.panyukovnn.longpollingtgbotstarter.property.TgBotProperties;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,6 +35,9 @@ class TgSenderUnitTest {
 
     @Mock
     private TelegramClient telegramClient;
+
+    @Mock
+    private TgBotProperties botProperties;
 
     @InjectMocks
     private TgSender tgSender;
@@ -1160,6 +1167,38 @@ class TgSenderUnitTest {
             assertDoesNotThrow(() -> tgSender.executeWithRetry(sendMessage));
 
             verify(telegramClient, times(2)).execute(any(SendMessage.class));
+        }
+    }
+
+    @Nested
+    class SendStreamingTests {
+
+        @Test
+        void when_sendStreaming_then_returnsStreamingMessageUpdater() throws Exception {
+            Long chatId = 123L;
+            Message sentMessage = new Message();
+            sentMessage.setMessageId(789);
+
+            when(telegramClient.execute(any(SendMessage.class))).thenReturn(sentMessage);
+
+            StreamingMessageUpdater result = tgSender.sendStreaming(chatId);
+
+            assertThat(result, notNullValue());
+            assertThat(result, instanceOf(StreamingMessageUpdater.class));
+
+            result.complete();
+
+            verify(telegramClient, times(1)).execute(any(SendMessage.class));
+        }
+
+        @Test
+        void when_sendStreaming_withApiError_then_exceptionPropagated() throws Exception {
+            Long chatId = 123L;
+
+            when(telegramClient.execute(any(SendMessage.class)))
+                    .thenThrow(new TelegramApiException("API error"));
+
+            assertThrows(Exception.class, () -> tgSender.sendStreaming(chatId));
         }
     }
 }

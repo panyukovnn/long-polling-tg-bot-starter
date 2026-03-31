@@ -44,8 +44,6 @@ public class StreamingMessageUpdater {
         this.chatId = chatId;
         this.messageId = messageId;
         this.updateIntervalMs = updateIntervalMs;
-        // TODO странная логика, переписать
-
         this.scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread thread = new Thread(runnable, "streaming-updater-" + chatId + "-" + messageId);
             thread.setDaemon(true);
