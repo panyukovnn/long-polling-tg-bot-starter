@@ -23,6 +23,11 @@ public class TgBotProperties {
      */
     private int requestTimeoutMs = 30_000;
 
+    /**
+     * Интервал обновления стримящегося сообщения в миллисекундах
+     */
+    private long streamingUpdateIntervalMs = 1000;
+
     public String getName() {
         return name;
     }
@@ -61,5 +66,13 @@ public class TgBotProperties {
 
     public void setRequestTimeoutMs(int requestTimeoutMs) {
         this.requestTimeoutMs = requestTimeoutMs;
+    }
+
+    public long getStreamingUpdateIntervalMs() {
+        return streamingUpdateIntervalMs;
+    }
+
+    public void setStreamingUpdateIntervalMs(long streamingUpdateIntervalMs) {
+        this.streamingUpdateIntervalMs = streamingUpdateIntervalMs;
     }
 }

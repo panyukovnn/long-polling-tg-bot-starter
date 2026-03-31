@@ -4,7 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
+import ru.panyukovnn.longpollingtgbotstarter.property.TgBotProperties;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -20,11 +22,23 @@ public class TgSender {
     public static final int MAX_TG_MESSAGE_LENGTH = 4096;
     private static final int MAX_RETRY_ATTEMPTS = 3;
     private static final long INITIAL_RETRY_DELAY_MS = 1000;
+    private static final String HORIZONTAL_LINE = "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯";
+    private static final String STREAMING_INITIAL_TEXT = "▍";
+    private static final long DEFAULT_STREAMING_UPDATE_INTERVAL_MS = 1000;
 
     private final TelegramClient telegramClient;
+    private final long streamingUpdateIntervalMs;
 
     public TgSender(TelegramClient telegramClient) {
         this.telegramClient = telegramClient;
+        this.streamingUpdateIntervalMs = DEFAULT_STREAMING_UPDATE_INTERVAL_MS;
+    }
+
+    public TgSender(TelegramClient telegramClient, TgBotProperties botProperties) {
+        this.telegramClient = telegramClient;
+        this.streamingUpdateIntervalMs = botProperties.getStreamingUpdateIntervalMs() > 0
+                ? botProperties.getStreamingUpdateIntervalMs()
+                : DEFAULT_STREAMING_UPDATE_INTERVAL_MS;
     }
 
     public void send(Long chatId, String message) {
@@ -40,6 +54,27 @@ public class TgSender {
 
             sendSimpleHtmlMessage(chatId, message);
         }
+    }
+
+    /**
+     * Отправляет начальное сообщение с курсором и возвращает StreamingMessageUpdater для постепенного обновления
+     */
+    public StreamingMessageUpdater sendStreaming(Long chatId) throws Exception {
+        SendMessage sendMessage = SendMessage.builder()
+                .chatId(chatId)
+                .text(STREAMING_INITIAL_TEXT)
+                .build();
+
+        Message sentMessage = telegramClient.execute(sendMessage);
+
+        log.info("Начат стриминг сообщения в чат '{}', messageId '{}'", chatId, sentMessage.getMessageId());
+
+        return new StreamingMessageUpdater(
+                telegramClient,
+                chatId,
+                sentMessage.getMessageId(),
+                streamingUpdateIntervalMs
+        );
     }
 
     protected void sendSimpleHtmlMessage(Long chatId, String message) {
@@ -92,6 +127,12 @@ public class TgSender {
         String linkMarkerStart = "\uE006";
         String linkMarkerMid = "\uE007";
         String linkMarkerEnd = "\uE008";
+
+        // Преобразуем заголовки (# текст) в жирный текст
+        result = result.replaceAll("(?m)^#{1,6}\\s+(.+)$", boldMarkerStart + "$1" + boldMarkerEnd);
+
+        // Преобразуем горизонтальные линии (---, ***, ___) в визуальный разделитель
+        result = result.replaceAll("(?m)^\\s*[-*_]{3,}\\s*$", HORIZONTAL_LINE);
 
         // Сохраняем блоки кода (```code```)
         result = result.replaceAll("```([^`]+)```", codeMarkerStart + "$1" + codeMarkerEnd);

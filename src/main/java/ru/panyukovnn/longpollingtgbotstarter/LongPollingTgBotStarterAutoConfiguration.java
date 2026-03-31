@@ -51,7 +51,7 @@ public class LongPollingTgBotStarterAutoConfiguration {
     }
 
     @Bean
-    public TgSender tgSender(TelegramClient telegramClient) {
-        return new TgSender(telegramClient);
+    public TgSender tgSender(TelegramClient telegramClient, TgBotProperties botProperties) {
+        return new TgSender(telegramClient, botProperties);
     }
 }

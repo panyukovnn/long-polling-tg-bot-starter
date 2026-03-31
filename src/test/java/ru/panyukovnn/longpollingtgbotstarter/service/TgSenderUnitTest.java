@@ -327,6 +327,54 @@ class TgSenderUnitTest {
             assertThat(result, containsString("миграция\\)"));
             assertThat(result, containsString("\\."));
         }
+
+        @Test
+        void when_convertMarkdownToTelegramMarkdownV2_withH1Header_then_convertedToBold() {
+            String text = "# Заголовок первого уровня";
+
+            String result = tgSender.convertMarkdownToTelegramMarkdownV2(text);
+
+            assertThat(result, equalTo("*Заголовок первого уровня*"));
+        }
+
+        @Test
+        void when_convertMarkdownToTelegramMarkdownV2_withH3Header_then_convertedToBold() {
+            String text = "### Заголовок третьего уровня";
+
+            String result = tgSender.convertMarkdownToTelegramMarkdownV2(text);
+
+            assertThat(result, equalTo("*Заголовок третьего уровня*"));
+        }
+
+        @Test
+        void when_convertMarkdownToTelegramMarkdownV2_withHeaderAndText_then_headerConvertedToBold() {
+            String text = "## Заголовок\nОбычный текст";
+
+            String result = tgSender.convertMarkdownToTelegramMarkdownV2(text);
+
+            assertThat(result, containsString("*Заголовок*"));
+            assertThat(result, containsString("Обычный текст"));
+        }
+
+        @Test
+        void when_convertMarkdownToTelegramMarkdownV2_withHorizontalRule_then_convertedToHorizontalLine() {
+            String text = "Текст до\n---\nТекст после";
+
+            String result = tgSender.convertMarkdownToTelegramMarkdownV2(text);
+
+            assertThat(result, containsString("⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"));
+            assertThat(result, not(containsString("---")));
+        }
+
+        @Test
+        void when_convertMarkdownToTelegramMarkdownV2_withAsterisksHorizontalRule_then_convertedToHorizontalLine() {
+            String text = "Текст до\n***\nТекст после";
+
+            String result = tgSender.convertMarkdownToTelegramMarkdownV2(text);
+
+            assertThat(result, containsString("⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"));
+            assertThat(result, not(containsString("***")));
+        }
     }
 
     @Nested
