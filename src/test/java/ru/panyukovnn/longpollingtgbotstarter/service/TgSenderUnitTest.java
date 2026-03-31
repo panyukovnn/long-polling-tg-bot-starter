@@ -17,11 +17,14 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.io.IOException;
 
 @ExtendWith(MockitoExtension.class)
 class TgSenderUnitTest {
@@ -949,6 +952,166 @@ class TgSenderUnitTest {
 
             assertThat(tags.size(), equalTo(1));
             assertThat(tags.get(0), equalTo("b"));
+        }
+    }
+
+    @Nested
+    class RetryLogicTests {
+
+        @Test
+        void when_executeWithRetry_succeeds_then_executeCalledOnce() throws Exception {
+            SendMessage sendMessage = SendMessage.builder()
+                .chatId(123L)
+                .text("Test message")
+                .build();
+
+            when(tgBotApi.execute(any(SendMessage.class))).thenReturn(null);
+
+            assertDoesNotThrow(() -> tgSender.executeWithRetry(sendMessage));
+
+            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+        }
+
+        @Test
+        void when_executeWithRetry_transientErrorOnFirstAttempt_then_retries()
+                throws Exception {
+            SendMessage sendMessage = SendMessage.builder()
+                .chatId(123L)
+                .text("Test message")
+                .build();
+
+            RuntimeException runtimeIOException = new RuntimeException("Connection reset",
+                new IOException("Connection reset"));
+
+            doThrow(runtimeIOException)
+                .doReturn(null)
+                .when(tgBotApi).execute(any(SendMessage.class));
+
+            assertDoesNotThrow(() -> tgSender.executeWithRetry(sendMessage));
+
+            verify(tgBotApi, times(2)).execute(any(SendMessage.class));
+        }
+
+        @Test
+        void when_executeWithRetry_maxRetriesExceeded_then_throwsException()
+                throws Exception {
+            SendMessage sendMessage = SendMessage.builder()
+                .chatId(123L)
+                .text("Test message")
+                .build();
+
+            RuntimeException runtimeIOException = new RuntimeException("Connection reset",
+                new IOException("Connection reset"));
+
+            doThrow(runtimeIOException)
+                .when(tgBotApi).execute(any(SendMessage.class));
+
+            RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> tgSender.executeWithRetry(sendMessage));
+
+            assertThat(exception.getMessage(), containsString("Connection reset"));
+            assertThat(exception.getCause(), not(equalTo(null)));
+            verify(tgBotApi, times(3)).execute(any(SendMessage.class));
+        }
+
+        @Test
+        void when_executeWithRetry_nonTransientError_then_throwsImmediately()
+                throws Exception {
+            SendMessage sendMessage = SendMessage.builder()
+                .chatId(123L)
+                .text("Test message")
+                .build();
+
+            when(tgBotApi.execute(any(SendMessage.class)))
+                .thenThrow(new TelegramApiException("Invalid request"));
+
+            assertThrows(TelegramApiException.class,
+                () -> tgSender.executeWithRetry(sendMessage));
+
+            verify(tgBotApi, times(1)).execute(any(SendMessage.class));
+        }
+
+        @Test
+        void when_isTransientError_withIOException_then_returnsTrue() {
+            Exception exception = new IOException("Connection timeout");
+
+            boolean result = tgSender.isTransientError(exception);
+
+            assertThat(result, equalTo(true));
+        }
+
+        @Test
+        void when_isTransientError_withWrappedIOException_then_returnsTrue() {
+            IOException ioException = new IOException("Connection reset");
+            TelegramApiException exception = new TelegramApiException("API error",
+                ioException);
+
+            boolean result = tgSender.isTransientError(exception);
+
+            assertThat(result, equalTo(true));
+        }
+
+        @Test
+        void when_isTransientError_withNonIOException_then_returnsFalse() {
+            Exception exception = new IllegalArgumentException("Invalid argument");
+
+            boolean result = tgSender.isTransientError(exception);
+
+            assertThat(result, equalTo(false));
+        }
+
+        @Test
+        void when_executeWithRetry_multipleTransientErrors_then_succedsOnThirdAttempt()
+                throws Exception {
+            SendMessage sendMessage = SendMessage.builder()
+                .chatId(123L)
+                .text("Test message")
+                .build();
+
+            RuntimeException firstError = new RuntimeException("Connection reset",
+                new IOException("Connection reset"));
+            RuntimeException secondError = new RuntimeException("Timeout",
+                new IOException("Timeout"));
+
+            doThrow(firstError)
+                .doThrow(secondError)
+                .doReturn(null)
+                .when(tgBotApi).execute(any(SendMessage.class));
+
+            assertDoesNotThrow(() -> tgSender.executeWithRetry(sendMessage));
+
+            verify(tgBotApi, times(3)).execute(any(SendMessage.class));
+        }
+
+        @Test
+        void when_isTransientError_withDeepCausedIOException_then_returnsTrue() {
+            IOException ioException = new IOException("Root cause");
+            RuntimeException runtimeException = new RuntimeException("Middle layer",
+                ioException);
+            TelegramApiException exception = new TelegramApiException("Top layer",
+                runtimeException);
+
+            boolean result = tgSender.isTransientError(exception);
+
+            assertThat(result, equalTo(true));
+        }
+
+        @Test
+        void when_executeWithRetry_wrappedIOExceptionInTelegramApiException_then_retries()
+                throws Exception {
+            SendMessage sendMessage = SendMessage.builder()
+                .chatId(123L)
+                .text("Test message")
+                .build();
+
+            doThrow(new TelegramApiException("API error",
+                    new IOException("Network unavailable")))
+                .doReturn(null)
+                .when(tgBotApi).execute(any(SendMessage.class));
+
+            assertDoesNotThrow(() -> tgSender.executeWithRetry(sendMessage));
+
+            verify(tgBotApi, times(2)).execute(any(SendMessage.class));
         }
     }
 }

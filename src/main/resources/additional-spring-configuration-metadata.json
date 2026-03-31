@@ -9,6 +9,24 @@
       "name": "telegram.bot.token",
       "type": "java.lang.String",
       "description": "Токен телеграм бота"
+    },
+    {
+      "name": "telegram.bot.connection-timeout-ms",
+      "type": "java.lang.Integer",
+      "description": "Таймаут установки соединения в миллисекундах",
+      "defaultValue": 30000
+    },
+    {
+      "name": "telegram.bot.socket-timeout-ms",
+      "type": "java.lang.Integer",
+      "description": "Таймаут ожидания данных (socket timeout) в миллисекундах",
+      "defaultValue": 75000
+    },
+    {
+      "name": "telegram.bot.request-timeout-ms",
+      "type": "java.lang.Integer",
+      "description": "Таймаут получения соединения из пула в миллисекундах",
+      "defaultValue": 30000
     }
   ]
 }

@@ -2,11 +2,11 @@ package ru.panyukovnn.longpollingtgbotstarter.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import ru.panyukovnn.longpollingtgbotstarter.config.TgBotApi;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
@@ -18,6 +18,8 @@ public class TgSender {
     private static final Logger log = LoggerFactory.getLogger(TgSender.class);
 
     public static final int MAX_TG_MESSAGE_LENGTH = 4096;
+    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final long INITIAL_RETRY_DELAY_MS = 1000;
 
     private final TgBotApi tgBotApi;
 
@@ -157,7 +159,7 @@ public class TgSender {
     }
 
     /**
-     * Отправляет одно сообщение с указанным режимом парсинга
+     * Отправляет одно сообщение с указанным режимом парсинга и retry при транзиентных ошибках
      */
     protected void sendSingleMessage(Long chatId, String message, String parseMode) throws Exception {
         SendMessage sendMessage = SendMessage.builder()
@@ -166,7 +168,57 @@ public class TgSender {
                 .text(message)
                 .build();
 
-        tgBotApi.execute(sendMessage);
+        executeWithRetry(sendMessage);
+    }
+
+    /**
+     * Выполняет запрос к Telegram API с повторными попытками при транзиентных сетевых ошибках
+     */
+    protected void executeWithRetry(SendMessage sendMessage) throws Exception {
+        int attempt = 0;
+
+        while (true) {
+            try {
+                tgBotApi.execute(sendMessage);
+
+                return;
+            } catch (Exception e) {
+                attempt++;
+
+                if (!isTransientError(e) || attempt >= MAX_RETRY_ATTEMPTS) {
+                    throw e;
+                }
+
+                long delayMs = INITIAL_RETRY_DELAY_MS * (1L << (attempt - 1));
+                log.warn("Транзиентная ошибка при отправке сообщения в чат '{}', попытка {}/{}, повтор через {} мс: {}",
+                        sendMessage.getChatId(), attempt, MAX_RETRY_ATTEMPTS, delayMs, e.getMessage());
+
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+
+                    throw e;
+                }
+            }
+        }
+    }
+
+    /**
+     * Определяет, является ли ошибка транзиентной (стоит повторить запрос)
+     */
+    protected boolean isTransientError(Exception exception) {
+        Throwable cause = exception;
+
+        while (cause != null) {
+            if (cause instanceof IOException) {
+                return true;
+            }
+
+            cause = cause.getCause();
+        }
+
+        return false;
     }
 
     /**

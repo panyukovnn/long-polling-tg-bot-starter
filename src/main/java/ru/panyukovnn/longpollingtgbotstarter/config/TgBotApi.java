@@ -1,6 +1,7 @@
 package ru.panyukovnn.longpollingtgbotstarter.config;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.extensions.bots.commandbot.TelegramLongPollingCommandBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
@@ -10,8 +11,9 @@ public class TgBotApi extends TelegramLongPollingCommandBot {
     private final String username;
     private final String token;
 
-    public TgBotApi(ApplicationEventPublisher eventPublisher, String username, String token) {
-        super();
+    public TgBotApi(ApplicationEventPublisher eventPublisher, DefaultBotOptions botOptions,
+                    String username, String token) {
+        super(botOptions);
         this.eventPublisher = eventPublisher;
         this.username = username;
         this.token = token;
