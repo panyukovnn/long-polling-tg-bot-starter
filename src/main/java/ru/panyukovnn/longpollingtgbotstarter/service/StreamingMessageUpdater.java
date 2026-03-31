@@ -24,6 +24,7 @@ public class StreamingMessageUpdater {
     private static final String CURSOR = "▍";
 
     private final TelegramClient telegramClient;
+    private final TgSender tgSender;
     private final Long chatId;
     private final Integer messageId;
     private final long updateIntervalMs;
@@ -37,10 +38,12 @@ public class StreamingMessageUpdater {
     private ScheduledFuture<?> flushTask;
 
     public StreamingMessageUpdater(TelegramClient telegramClient,
+                                   TgSender tgSender,
                                    Long chatId,
                                    Integer messageId,
                                    long updateIntervalMs) {
         this.telegramClient = telegramClient;
+        this.tgSender = tgSender;
         this.chatId = chatId;
         this.messageId = messageId;
         this.updateIntervalMs = updateIntervalMs;
@@ -133,17 +136,33 @@ public class StreamingMessageUpdater {
         String displayText = withCursor ? text + CURSOR : text;
 
         try {
-            EditMessageText editMessage = EditMessageText.builder()
-                    .chatId(chatId)
-                    .messageId(messageId)
-                    .text(displayText)
-                    .parseMode(ParseMode.HTML)
-                    .build();
+            String markdownV2Text = tgSender.convertMarkdownToTelegramMarkdownV2(displayText);
 
-            telegramClient.execute(editMessage);
+            executeEdit(markdownV2Text, ParseMode.MARKDOWNV2);
         } catch (Exception e) {
-            log.warn("Ошибка при обновлении стримящегося сообщения в чате '{}', сообщение '{}': {}",
+            log.warn("Ошибка при обновлении стримящегося сообщения с MarkdownV2 в чате '{}', сообщение '{}', " +
+                            "пробуем HTML: {}",
                     chatId, messageId, e.getMessage());
+
+            try {
+                String htmlText = tgSender.escapeHtml(displayText);
+
+                executeEdit(htmlText, ParseMode.HTML);
+            } catch (Exception htmlException) {
+                log.warn("Ошибка при обновлении стримящегося сообщения с HTML в чате '{}', сообщение '{}': {}",
+                        chatId, messageId, htmlException.getMessage());
+            }
         }
+    }
+
+    private void executeEdit(String text, String parseMode) throws Exception {
+        EditMessageText editMessage = EditMessageText.builder()
+                .chatId(chatId)
+                .messageId(messageId)
+                .text(text)
+                .parseMode(parseMode)
+                .build();
+
+        telegramClient.execute(editMessage);
     }
 }

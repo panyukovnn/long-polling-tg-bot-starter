@@ -39,13 +39,18 @@ class StreamingMessageUpdaterUnitTest {
     @Mock
     private TelegramClient telegramClient;
 
+    @Mock
+    private TgSender tgSender;
+
     private StreamingMessageUpdater updater;
 
     @BeforeEach
     void setUp() throws Exception {
         when(telegramClient.execute(any(EditMessageText.class))).thenReturn((Serializable) true);
+        when(tgSender.convertMarkdownToTelegramMarkdownV2(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(tgSender.escapeHtml(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        updater = new StreamingMessageUpdater(telegramClient, CHAT_ID, MESSAGE_ID, UPDATE_INTERVAL_MS);
+        updater = new StreamingMessageUpdater(telegramClient, tgSender, CHAT_ID, MESSAGE_ID, UPDATE_INTERVAL_MS);
     }
 
     @AfterEach
@@ -107,6 +112,34 @@ class StreamingMessageUpdaterUnitTest {
             Thread.sleep(UPDATE_INTERVAL_MS * 3);
 
             verify(telegramClient, never()).execute(any(EditMessageText.class));
+        }
+
+        @Test
+        void when_markdownV2Fails_then_fallbackToHtml() throws Exception {
+            when(tgSender.convertMarkdownToTelegramMarkdownV2(any()))
+                    .thenReturn("converted");
+            when(telegramClient.execute(any(EditMessageText.class)))
+                    .thenThrow(new TelegramApiException("MarkdownV2 error"))
+                    .thenReturn((Serializable) true);
+
+            updater.appendToken("**bold**");
+
+            verify(telegramClient, timeout(500).atLeast(2)).execute(any(EditMessageText.class));
+        }
+
+        @Test
+        void when_tokenAppended_then_convertMarkdownV2Called() throws Exception {
+            when(tgSender.convertMarkdownToTelegramMarkdownV2(any()))
+                    .thenReturn("converted\\!");
+
+            updater.appendToken("Hello!");
+
+            ArgumentCaptor<EditMessageText> captor = ArgumentCaptor.forClass(EditMessageText.class);
+            verify(telegramClient, timeout(500).atLeastOnce()).execute(captor.capture());
+
+            EditMessageText lastEdit = captor.getValue();
+            assertThat(lastEdit.getText(), equalTo("converted\\!"));
+            assertThat(lastEdit.getParseMode(), equalTo("MarkdownV2"));
         }
 
         @Test

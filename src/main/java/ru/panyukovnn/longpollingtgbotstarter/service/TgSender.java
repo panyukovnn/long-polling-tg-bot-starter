@@ -71,6 +71,7 @@ public class TgSender {
 
         return new StreamingMessageUpdater(
                 telegramClient,
+                this,
                 chatId,
                 sentMessage.getMessageId(),
                 streamingUpdateIntervalMs
