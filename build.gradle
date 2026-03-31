@@ -21,7 +21,7 @@ repositories {
     mavenCentral()
 }
 
-def telegrambotsVersion = "6.5.0"
+def telegrambotsVersion = "6.9.7.1"
 
 dependencies {
     implementation "org.springframework.boot:spring-boot-starter"
