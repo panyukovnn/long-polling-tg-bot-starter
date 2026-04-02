@@ -10,19 +10,26 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
 import java.io.Serializable;
+import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
@@ -49,6 +56,13 @@ class StreamingMessageUpdaterUnitTest {
         when(telegramClient.execute(any(EditMessageText.class))).thenReturn((Serializable) true);
         when(tgSender.convertMarkdownToTelegramMarkdownV2(any())).thenAnswer(inv -> inv.getArgument(0));
         when(tgSender.escapeHtml(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(tgSender.fixUnclosedMarkdownTags(anyString())).thenAnswer(inv -> inv.getArgument(0));
+        when(tgSender.findSplitPosition(anyString(), anyInt())).thenAnswer(inv -> {
+            String text = inv.getArgument(0);
+            int maxLength = inv.getArgument(1);
+
+            return Math.min(text.length(), maxLength);
+        });
 
         updater = new StreamingMessageUpdater(telegramClient, tgSender, CHAT_ID, MESSAGE_ID, UPDATE_INTERVAL_MS);
     }
@@ -199,6 +213,156 @@ class StreamingMessageUpdaterUnitTest {
             updater.appendToken("three");
 
             assertThat(updater.getCurrentText(), equalTo("onetwothree"));
+        }
+    }
+
+    @Nested
+    class MultiMessageSplitTests {
+
+        private static final Integer NEW_MESSAGE_ID = 789;
+
+        @BeforeEach
+        void setUpSendMessage() throws Exception {
+            Message newMessage = mock(Message.class);
+            when(newMessage.getMessageId()).thenReturn(NEW_MESSAGE_ID);
+            when(telegramClient.execute(any(SendMessage.class))).thenReturn(newMessage);
+        }
+
+        @Test
+        void when_textExceedsSplitThreshold_then_newMessageCreated() throws Exception {
+            String longText = "a".repeat(StreamingMessageUpdater.STREAMING_SPLIT_THRESHOLD + 500);
+            updater.appendToken(longText);
+
+            verify(telegramClient, timeout(500).atLeastOnce()).execute(any(SendMessage.class));
+        }
+
+        @Test
+        void when_textExceedsSplitThreshold_then_firstMessageFinalized() throws Exception {
+            String longText = "a".repeat(StreamingMessageUpdater.STREAMING_SPLIT_THRESHOLD + 500);
+            updater.appendToken(longText);
+
+            Thread.sleep(UPDATE_INTERVAL_MS * 3);
+
+            ArgumentCaptor<EditMessageText> captor = ArgumentCaptor.forClass(EditMessageText.class);
+            verify(telegramClient, atLeastOnce()).execute(captor.capture());
+
+            List<EditMessageText> edits = captor.getAllValues();
+            boolean hasOriginalMessageEdit = edits.stream()
+                    .anyMatch(edit -> MESSAGE_ID.equals(edit.getMessageId()));
+
+            assertThat("Первое сообщение должно быть отредактировано", hasOriginalMessageEdit);
+        }
+
+        @Test
+        void when_textExceedsSplitThreshold_then_secondMessageEdited() throws Exception {
+            String longText = "a".repeat(StreamingMessageUpdater.STREAMING_SPLIT_THRESHOLD + 500);
+            updater.appendToken(longText);
+
+            Thread.sleep(UPDATE_INTERVAL_MS * 3);
+
+            ArgumentCaptor<EditMessageText> captor = ArgumentCaptor.forClass(EditMessageText.class);
+            verify(telegramClient, atLeastOnce()).execute(captor.capture());
+
+            List<EditMessageText> edits = captor.getAllValues();
+            boolean hasNewMessageEdit = edits.stream()
+                    .anyMatch(edit -> NEW_MESSAGE_ID.equals(edit.getMessageId()));
+
+            assertThat("Второе сообщение должно быть отредактировано", hasNewMessageEdit);
+        }
+
+        @Test
+        void when_textExceedsSplitThreshold_then_lastEditHasCursor() throws Exception {
+            String longText = "a".repeat(StreamingMessageUpdater.STREAMING_SPLIT_THRESHOLD + 500);
+            updater.appendToken(longText);
+
+            Thread.sleep(UPDATE_INTERVAL_MS * 3);
+
+            ArgumentCaptor<EditMessageText> captor = ArgumentCaptor.forClass(EditMessageText.class);
+            verify(telegramClient, atLeastOnce()).execute(captor.capture());
+
+            EditMessageText lastEdit = captor.getAllValues()
+                    .get(captor.getAllValues().size() - 1);
+
+            assertThat(lastEdit.getText(), endsWith("▍"));
+        }
+
+        @Test
+        void when_textExceedsSplitThreshold_then_firstMessageHasNoCursor() throws Exception {
+            String longText = "a".repeat(StreamingMessageUpdater.STREAMING_SPLIT_THRESHOLD + 500);
+            updater.appendToken(longText);
+
+            Thread.sleep(UPDATE_INTERVAL_MS * 3);
+
+            ArgumentCaptor<EditMessageText> captor = ArgumentCaptor.forClass(EditMessageText.class);
+            verify(telegramClient, atLeastOnce()).execute(captor.capture());
+
+            List<EditMessageText> edits = captor.getAllValues();
+            EditMessageText firstMessageEdit = edits.stream()
+                    .filter(edit -> MESSAGE_ID.equals(edit.getMessageId()))
+                    .reduce((first, second) -> second)
+                    .orElseThrow();
+
+            assertThat(firstMessageEdit.getText(), not(containsString("▍")));
+        }
+
+        @Test
+        void when_veryLongText_then_multipleNewMessagesCreated() throws Exception {
+            int threshold = StreamingMessageUpdater.STREAMING_SPLIT_THRESHOLD;
+            String veryLongText = "a".repeat(threshold * 3);
+            updater.appendToken(veryLongText);
+
+            Thread.sleep(UPDATE_INTERVAL_MS * 3);
+
+            ArgumentCaptor<SendMessage> sendCaptor = ArgumentCaptor.forClass(SendMessage.class);
+            verify(telegramClient, atLeastOnce()).execute(sendCaptor.capture());
+
+            assertThat("Должно быть создано минимум 2 новых сообщения",
+                    sendCaptor.getAllValues().size(), greaterThanOrEqualTo(2));
+        }
+
+        @Test
+        void when_completeAfterSplit_then_lastMessageWithoutCursor() throws Exception {
+            String longText = "a".repeat(StreamingMessageUpdater.STREAMING_SPLIT_THRESHOLD + 500);
+            updater.appendToken(longText);
+
+            Thread.sleep(UPDATE_INTERVAL_MS * 3);
+
+            updater.complete();
+
+            ArgumentCaptor<EditMessageText> captor = ArgumentCaptor.forClass(EditMessageText.class);
+            verify(telegramClient, atLeastOnce()).execute(captor.capture());
+
+            EditMessageText lastEdit = captor.getAllValues()
+                    .get(captor.getAllValues().size() - 1);
+
+            assertThat(lastEdit.getText(), not(containsString("▍")));
+            assertThat(lastEdit.getMessageId(), equalTo(NEW_MESSAGE_ID));
+        }
+
+        @Test
+        void when_splitAndContinueStreaming_then_newTokensInSecondMessage() throws Exception {
+            String firstPart = "a".repeat(StreamingMessageUpdater.STREAMING_SPLIT_THRESHOLD + 100);
+            updater.appendToken(firstPart);
+
+            Thread.sleep(UPDATE_INTERVAL_MS * 3);
+
+            verify(telegramClient, atLeastOnce()).execute(any(SendMessage.class));
+
+            updater.appendToken("NEW_TOKEN");
+
+            Thread.sleep(UPDATE_INTERVAL_MS * 3);
+
+            ArgumentCaptor<EditMessageText> captor = ArgumentCaptor.forClass(EditMessageText.class);
+            verify(telegramClient, atLeastOnce()).execute(captor.capture());
+
+            List<EditMessageText> newMessageEdits = captor.getAllValues().stream()
+                    .filter(edit -> NEW_MESSAGE_ID.equals(edit.getMessageId()))
+                    .toList();
+
+            boolean hasNewToken = newMessageEdits.stream()
+                    .anyMatch(edit -> edit.getText().contains("NEW_TOKEN"));
+
+            assertThat("Новые токены должны быть во втором сообщении", hasNewToken);
         }
     }
 }
