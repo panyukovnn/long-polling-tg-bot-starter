@@ -28,10 +28,12 @@ public class TgSender {
 
     private final TelegramClient telegramClient;
     private final long streamingUpdateIntervalMs;
+    private final TypingIndicator typingIndicator;
 
     public TgSender(TelegramClient telegramClient) {
         this.telegramClient = telegramClient;
         this.streamingUpdateIntervalMs = DEFAULT_STREAMING_UPDATE_INTERVAL_MS;
+        this.typingIndicator = null;
     }
 
     public TgSender(TelegramClient telegramClient, TgBotProperties botProperties) {
@@ -39,6 +41,17 @@ public class TgSender {
         this.streamingUpdateIntervalMs = botProperties.getStreamingUpdateIntervalMs() > 0
                 ? botProperties.getStreamingUpdateIntervalMs()
                 : DEFAULT_STREAMING_UPDATE_INTERVAL_MS;
+        this.typingIndicator = null;
+    }
+
+    public TgSender(TelegramClient telegramClient,
+                    TgBotProperties botProperties,
+                    TypingIndicator typingIndicator) {
+        this.telegramClient = telegramClient;
+        this.streamingUpdateIntervalMs = botProperties.getStreamingUpdateIntervalMs() > 0
+                ? botProperties.getStreamingUpdateIntervalMs()
+                : DEFAULT_STREAMING_UPDATE_INTERVAL_MS;
+        this.typingIndicator = typingIndicator;
     }
 
     public void send(Long chatId, String message) {
@@ -74,7 +87,8 @@ public class TgSender {
                 this,
                 chatId,
                 sentMessage.getMessageId(),
-                streamingUpdateIntervalMs
+                streamingUpdateIntervalMs,
+                typingIndicator
         );
     }
 

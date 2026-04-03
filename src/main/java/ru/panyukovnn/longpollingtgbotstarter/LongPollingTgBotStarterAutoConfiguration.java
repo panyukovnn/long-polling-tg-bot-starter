@@ -12,7 +12,10 @@ import org.telegram.telegrambots.meta.generics.TelegramClient;
 import ru.panyukovnn.longpollingtgbotstarter.config.TgBotApi;
 import ru.panyukovnn.longpollingtgbotstarter.property.TgBotProperties;
 import ru.panyukovnn.longpollingtgbotstarter.service.TgSender;
+import ru.panyukovnn.longpollingtgbotstarter.service.TypingIndicator;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @AutoConfiguration
@@ -50,8 +53,21 @@ public class LongPollingTgBotStarterAutoConfiguration {
         return application;
     }
 
+    @Bean(destroyMethod = "shutdown")
+    public ScheduledExecutorService typingScheduler() {
+        return Executors.newScheduledThreadPool(3);
+    }
+
     @Bean
-    public TgSender tgSender(TelegramClient telegramClient, TgBotProperties botProperties) {
-        return new TgSender(telegramClient, botProperties);
+    public TypingIndicator typingIndicator(TelegramClient telegramClient,
+                                           ScheduledExecutorService typingScheduler) {
+        return new TypingIndicator(telegramClient, typingScheduler);
+    }
+
+    @Bean
+    public TgSender tgSender(TelegramClient telegramClient,
+                              TgBotProperties botProperties,
+                              TypingIndicator typingIndicator) {
+        return new TgSender(telegramClient, botProperties, typingIndicator);
     }
 }

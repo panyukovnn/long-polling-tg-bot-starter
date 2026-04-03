@@ -8,6 +8,8 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
+import org.springframework.lang.Nullable;
+
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -44,12 +46,22 @@ public class StreamingMessageUpdater {
     private volatile int currentMessageId;
     private volatile int finalizedLength;
     private ScheduledFuture<?> flushTask;
+    private ScheduledFuture<?> typingTask;
 
     public StreamingMessageUpdater(TelegramClient telegramClient,
                                    TgSender tgSender,
                                    Long chatId,
                                    Integer messageId,
                                    long updateIntervalMs) {
+        this(telegramClient, tgSender, chatId, messageId, updateIntervalMs, null);
+    }
+
+    public StreamingMessageUpdater(TelegramClient telegramClient,
+                                   TgSender tgSender,
+                                   Long chatId,
+                                   Integer messageId,
+                                   long updateIntervalMs,
+                                   @Nullable TypingIndicator typingIndicator) {
         this.telegramClient = telegramClient;
         this.tgSender = tgSender;
         this.chatId = chatId;
@@ -62,6 +74,10 @@ public class StreamingMessageUpdater {
 
             return thread;
         });
+
+        if (typingIndicator != null) {
+            this.typingTask = typingIndicator.start(chatId);
+        }
 
         startFlushScheduler();
     }
@@ -91,6 +107,7 @@ public class StreamingMessageUpdater {
      */
     public void complete() {
         if (completed.compareAndSet(false, true)) {
+            stopTyping();
             stopFlushScheduler();
             dirty.set(true);
             flush(false);
@@ -106,6 +123,12 @@ public class StreamingMessageUpdater {
             return buffer.toString();
         } finally {
             lock.unlock();
+        }
+    }
+
+    private void stopTyping() {
+        if (typingTask != null) {
+            typingTask.cancel(false);
         }
     }
 
